@@ -177,7 +177,7 @@ router.post('/receipts', async (req: Request, res: Response, next: NextFunction)
     const receiptNumber = `REC-${String(count + 1).padStart(5, '0')}`;
 
     const receipt = await prisma.receipt.create({
-      data: { tenantId, receiptNumber, receiptDate: new Date(body.receiptDate), ...body },
+      data: { ...body, tenantId, receiptNumber, receiptDate: new Date(body.receiptDate) },
     });
 
     if (body.invoiceId) {
