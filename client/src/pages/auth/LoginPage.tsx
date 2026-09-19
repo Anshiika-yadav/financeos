@@ -8,6 +8,7 @@ import { Input } from '../../components/shared/Input';
 import { Button } from '../../components/shared/Button';
 import { useAuth } from '../../store/auth.context';
 import { login } from '../../services/auth.service';
+import { tokenStore } from '../../services/api';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -31,12 +32,13 @@ export function LoginPage() {
     mutationFn: login,
     onSuccess: (tokens) => {
       // In a real app, we'd decode the JWT to get user info.
-      // For now, navigate to tenant selection or onboarding.
+      const existingTenantSlug = tokenStore.getTenantSlug();
       authLogin(
         { userId: '', email: '', firstName: '', lastName: '' },
         tokens,
+        existingTenantSlug ?? undefined,
       );
-      navigate('/onboarding');
+      navigate(existingTenantSlug ? '/dashboard' : '/onboarding');
     },
     onError: () => {
       setError('root', { message: 'Invalid email or password' });
