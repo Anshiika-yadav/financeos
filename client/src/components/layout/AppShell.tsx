@@ -30,7 +30,6 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'Chart of Accounts', to: '/gl/accounts' },
       { label: 'Journal Entries', to: '/gl/journals' },
       { label: 'Trial Balance', to: '/gl/trial-balance' },
-      { label: 'Fiscal Periods', to: '/gl/periods' },
     ],
   },
   {
@@ -48,22 +47,33 @@ const NAV_ITEMS: NavItem[] = [
     to: '/ar',
     icon: Receipt,
     children: [
-      { label: 'Invoices', to: '/ar/invoices' },
-      { label: 'Receipts', to: '/ar/receipts' },
+      { label: 'Sales Invoices', to: '/ar/invoices' },
       { label: 'Customers', to: '/ar/customers' },
       { label: 'Collections', to: '/ar/collections' },
     ],
   },
   {
-    label: 'Treasury',
+    label: 'Cash & Treasury',
     to: '/treasury',
     icon: Landmark,
     children: [
-      { label: 'Bank Accounts', to: '/treasury/accounts' },
+      { label: 'Cash Position', to: '/treasury/accounts' },
       { label: 'Reconciliation', to: '/treasury/reconciliation' },
     ],
   },
-  { label: 'Settings', to: '/settings', icon: Settings },
+  {
+    label: 'Procurement',
+    to: '/procurement',
+    icon: Settings,
+    children: [
+      { label: 'Purchase Requests', to: '/procurement/requests' },
+      { label: 'Purchase Orders', to: '/procurement/orders' },
+    ],
+  },
+  { label: 'Expenses', to: '/expenses', icon: Receipt },
+  { label: 'Fixed Assets', to: '/assets', icon: Settings },
+  { label: 'Inventory', to: '/inventory', icon: Settings },
+  { label: 'Projects & Contracts', to: '/projects', icon: Settings },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

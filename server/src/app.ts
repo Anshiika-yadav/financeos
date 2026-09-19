@@ -12,6 +12,16 @@ import { errorHandler } from './middleware/errorHandler';
 
 import authRoutes from './routes/auth.routes';
 import tenantRoutes from './routes/tenant.routes';
+import glRoutes from './routes/modules/gl.routes';
+import apRoutes from './routes/modules/ap.routes';
+import arRoutes from './routes/modules/ar.routes';
+import treasuryRoutes from './routes/modules/treasury.routes';
+import procurementRoutes from './routes/modules/procurement.routes';
+import expensesRoutes from './routes/modules/expenses.routes';
+import assetsRoutes from './routes/modules/assets.routes';
+import inventoryRoutes from './routes/modules/inventory.routes';
+import projectsRoutes from './routes/modules/projects.routes';
+import budgetingRoutes from './routes/modules/budgeting.routes';
 
 export function createApp() {
   const app = express();
@@ -94,6 +104,16 @@ export function createApp() {
   // ─── API Routes ────────────────────────────────────────────────────────────
   app.use('/api/v1/auth', authLimiter, authRoutes);
   app.use('/api/v1/tenants', tenantRoutes);
+  app.use('/api/v1/gl', glRoutes);
+  app.use('/api/v1/ap', apRoutes);
+  app.use('/api/v1/ar', arRoutes);
+  app.use('/api/v1/treasury', treasuryRoutes);
+  app.use('/api/v1/procurement', procurementRoutes);
+  app.use('/api/v1/expenses', expensesRoutes);
+  app.use('/api/v1/assets', assetsRoutes);
+  app.use('/api/v1/inventory', inventoryRoutes);
+  app.use('/api/v1/projects', projectsRoutes);
+  app.use('/api/v1/budgeting', budgetingRoutes);
 
   // ─── Error handler (must be last) ─────────────────────────────────────────
   app.use(errorHandler);
