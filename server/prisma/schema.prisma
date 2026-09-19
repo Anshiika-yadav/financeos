@@ -1,0 +1,396 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLATFORM LEVEL (no tenant_id — these are global)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  platformRole   String?   // super_admin | support_agent | billing_admin
+  mfaEnabled     Boolean   @default(false)
+  mfaSecret      String?
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenantMemberships TenantUser[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]    @relation("ActorAuditLogs")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TENANT LEVEL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Tenant {
+  id             String    @id @default(uuid())
+  slug           String    @unique  // used as subdomain
+  legalName      String
+  displayName    String
+  country        String    // ISO 3166-1 alpha-2
+  timezone       String    // IANA tz
+  baseCurrency   String    // ISO 4217
+  planId         String?
+  isActive       Boolean   @default(true)
+  onboardingStep Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  members        TenantUser[]
+  legalEntities  LegalEntity[]
+  fiscalYears    FiscalYear[]
+  fiscalPeriods  FiscalPeriod[]
+  accounts       GlAccount[]
+  dimensions     GlDimension[]
+  journals       GlJournal[]
+   taxProfiles      TaxProfile[]
+  auditLogs        AuditLog[]
+  journalLines     GlJournalLine[]
+  dimensionValues  GlDimensionValue[]
+  taxRates         TaxRate[]
+
+  @@map("tenants")
+}
+
+model TenantUser {
+  id          String    @id @default(uuid())
+  tenantId    String
+  userId      String
+  isActive    Boolean   @default(true)
+  invitedAt   DateTime  @default(now())
+  joinedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleAssignments TenantUserRole[]
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("tenant_users")
+}
+
+model Role {
+  id          String    @id @default(uuid())
+  tenantId    String?   // null = platform-wide built-in role
+  name        String
+  description String?
+  isBuiltIn   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  permissions RolePermission[]
+  userRoles   TenantUserRole[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model Permission {
+  id           String    @id @default(uuid())
+  module       String    // e.g. "gl", "ap", "ar", "treasury"
+  resourceType String    // e.g. "journal", "bill", "invoice"
+  action       String    // create | read | update | delete | approve | post | …
+  description  String?
+
+  roles RolePermission[]
+
+  @@unique([module, resourceType, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model TenantUserRole {
+  id           String    @id @default(uuid())
+  tenantUserId String
+  roleId       String
+  assignedAt   DateTime  @default(now())
+  assignedBy   String?
+
+  tenantUser TenantUser @relation(fields: [tenantUserId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantUserId, roleId])
+  @@map("tenant_user_roles")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id            String    @id @default(uuid())
+  tenantId      String
+  actorId       String
+  action        String
+  resourceType  String
+  resourceId    String
+  beforeState   Json?
+  afterState    Json?
+  metadata      Json?
+  correlationId String?
+  createdAt     DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  User   @relation("ActorAuditLogs", fields: [actorId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, resourceType, resourceId])
+  @@index([tenantId, actorId])
+  @@index([correlationId])
+  @@map("audit_logs")
+}
+
+// ─── Legal Entity & Org ───────────────────────────────────────────────────────
+
+model LegalEntity {
+  id           String    @id @default(uuid())
+  tenantId     String
+  name         String
+  legalName    String
+  country      String
+  currency     String
+  taxId        String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fiscalYears  FiscalYear[]
+
+  @@index([tenantId])
+  @@map("legal_entities")
+}
+
+model FiscalYear {
+  id             String    @id @default(uuid())
+  tenantId       String
+  legalEntityId  String
+  name           String
+  startDate      DateTime
+  endDate        DateTime
+  status         String    @default("Open") // Open | Closed
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  legalEntity   LegalEntity @relation(fields: [legalEntityId], references: [id])
+  periods       FiscalPeriod[]
+
+  @@index([tenantId])
+  @@map("fiscal_years")
+}
+
+model FiscalPeriod {
+  id            String    @id @default(uuid())
+  tenantId      String
+  fiscalYearId  String
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  status        String    @default("Open") // Open | Locked
+  lockedAt      DateTime?
+  lockedBy      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fiscalYear  FiscalYear @relation(fields: [fiscalYearId], references: [id])
+  journals    GlJournal[]
+
+  @@index([tenantId])
+  @@index([tenantId, startDate, endDate])
+  @@map("fiscal_periods")
+}
+
+// ─── Chart of Accounts ────────────────────────────────────────────────────────
+
+model GlAccount {
+  id            String    @id @default(uuid())
+  tenantId      String
+  code          String
+  name          String
+  accountType   String    // Asset | Liability | Equity | Revenue | Expense
+  normalBalance String    // Debit | Credit
+  parentId      String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent        GlAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children      GlAccount[] @relation("AccountHierarchy")
+  journalLines  GlJournalLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("gl_accounts")
+}
+
+model GlDimension {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String    // e.g. "Department", "CostCenter", "Project"
+  values      GlDimensionValue[]
+  createdAt   DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("gl_dimensions")
+}
+
+model GlDimensionValue {
+  id          String    @id @default(uuid())
+  tenantId    String
+  dimensionId String
+  code        String
+  name        String
+  isActive    Boolean   @default(true)
+
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dimension GlDimension @relation(fields: [dimensionId], references: [id], onDelete: Cascade)
+
+  @@unique([dimensionId, code])
+  @@index([tenantId])
+  @@map("gl_dimension_values")
+}
+
+// ─── Journals ─────────────────────────────────────────────────────────────────
+
+model GlJournal {
+  id              String    @id @default(uuid())
+  tenantId        String
+  journalNumber   String
+  description     String
+  fiscalPeriodId  String
+  postingDate     DateTime
+  status          String    @default("Draft") // Draft | Pending | Approved | Posted
+  sourceModule    String?   // gl | ap | ar | treasury | assets | …
+  sourceId        String?
+  createdBy       String
+  approvedBy      String?
+  approvedAt      DateTime?
+  postedBy        String?
+  postedAt        DateTime?
+  reversalOf      String?   // id of the journal this reverses
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  period      FiscalPeriod @relation(fields: [fiscalPeriodId], references: [id])
+  lines       GlJournalLine[]
+
+  @@unique([tenantId, journalNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, sourceModule, sourceId])
+  @@map("gl_journals")
+}
+
+model GlJournalLine {
+  id            String    @id @default(uuid())
+  tenantId      String
+  journalId     String
+  lineNumber    Int
+  accountId     String
+  description   String?
+  debit         Decimal   @default(0) @db.Decimal(19, 4)
+  credit        Decimal   @default(0) @db.Decimal(19, 4)
+  currency      String
+  exchangeRate  Decimal   @default(1) @db.Decimal(19, 6)
+  dimensions    Json?     // { "department": "ENG", "costCenter": "CC01" }
+  createdAt     DateTime  @default(now())
+
+  tenant  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  journal GlJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  account GlAccount @relation(fields: [accountId], references: [id])
+
+  @@index([tenantId])
+  @@index([journalId])
+  @@index([tenantId, accountId])
+  @@map("gl_journal_lines")
+}
+
+// Workaround: Prisma doesn't reference gl_journal_lines in Tenant model directly
+// but we need it for RLS. Add explicit relation helper:
+
+
+// ─── Tax ──────────────────────────────────────────────────────────────────────
+
+model TaxProfile {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  country     String
+  taxRates    TaxRate[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("tax_profiles")
+}
+
+model TaxRate {
+  id           String    @id @default(uuid())
+  tenantId     String
+  taxProfileId String
+  name         String
+  rate         Decimal   @db.Decimal(7, 4)
+  taxType      String    // VAT | GST | Sales | Withholding
+  isActive     Boolean   @default(true)
+  effectiveFrom DateTime
+  effectiveTo  DateTime?
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  taxProfile TaxProfile @relation(fields: [taxProfileId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("tax_rates")
+}
+
+
+// ─── AP / AR will be added in Phase 3 migrations ─────────────────────────────
