@@ -71,6 +71,26 @@ export function createApp() {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  // ─── Debug endpoint (remove after fixing) ─────────────────────────────────
+  app.get('/api/debug', async (_req, res) => {
+    const { prisma } = await import('./config/database');
+    let dbOk = false;
+    let dbError = '';
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbOk = true;
+    } catch (e) {
+      dbError = (e as Error).message;
+    }
+    res.json({
+      env: config.env,
+      dbOk,
+      dbError,
+      corsOrigin: config.cors.origin,
+      nodeVersion: process.version,
+    });
+  });
+
   // ─── API Routes ────────────────────────────────────────────────────────────
   app.use('/api/v1/auth', authLimiter, authRoutes);
   app.use('/api/v1/tenants', tenantRoutes);

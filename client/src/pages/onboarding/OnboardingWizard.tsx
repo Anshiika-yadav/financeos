@@ -9,8 +9,8 @@ import { Input } from '../../components/shared/Input';
 import { Select } from '../../components/shared/Select';
 import { Button } from '../../components/shared/Button';
 import { useAuth } from '../../store/auth.context';
-import { apiPost } from '../../services/api';
-import { tokenStore } from '../../services/api';
+import { api, tokenStore } from '../../services/api';
+import type { ApiResponse } from '../../types';
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
@@ -103,7 +103,16 @@ export function OnboardingWizard() {
 
   // Step 1: Create tenant
   const createTenantMutation = useMutation({
-    mutationFn: (data: OrgFormValues) => apiPost<{ tenant: { id: string; slug: string } }>('/tenants', data),
+    mutationFn: async (data: OrgFormValues) => {
+      const { data: body } = await api.post<ApiResponse<{ tenant: { id: string; slug: string } }>>(
+        '/tenants',
+        data,
+      );
+      if (!body.success || !body.data) {
+        throw new Error(body.error ?? 'Failed to create organisation');
+      }
+      return body.data;
+    },
     onSuccess: (result) => {
       setWizardState({ tenantId: result.tenant.id, tenantSlug: result.tenant.slug });
       tokenStore.setTenantSlug(result.tenant.slug);
@@ -166,7 +175,12 @@ export function OnboardingWizard() {
               form={orgForm}
               onSubmit={createTenantMutation.mutate}
               isLoading={createTenantMutation.isPending}
-              error={createTenantMutation.isError ? 'Could not create organisation. Slug may already be taken.' : undefined}
+              error={
+                createTenantMutation.isError
+                  ? (createTenantMutation.error as Error)?.message ||
+                    'Could not create organisation. Please try again.'
+                  : undefined
+              }
             />
           )}
 
@@ -212,7 +226,11 @@ function StepOrganisation({
   isLoading: boolean;
   error?: string;
 }) {
-  const { register, handleSubmit, formState: { errors } } = form;
+  const { register, handleSubmit, formState: { errors }, watch, setError, clearErrors } = form;
+  const slugValue = watch('slug', '');
+
+  // Auto-fill displayName from legalName if displayName is still empty
+  const legalNameValue = watch('legalName', '');
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -225,10 +243,15 @@ function StepOrganisation({
 
       <Input
         label="Workspace URL"
-        hint="acme → acme.financeos.com"
+        hint={slugValue ? `Your workspace: ${slugValue}.financeos.com` : 'e.g. acme → acme.financeos.com'}
         required
         error={errors.slug?.message}
-        {...register('slug')}
+        {...register('slug', {
+          onChange: (e) => {
+            // Auto-lowercase and strip invalid chars as user types
+            e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+          },
+        })}
       />
       <Input
         label="Legal name"
@@ -272,7 +295,9 @@ function StepOrganisation({
       />
 
       {error && (
-        <p className="text-sm text-red-600" role="alert">{error}</p>
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2" role="alert">
+          {error}
+        </p>
       )}
 
       <div className="flex justify-end">

@@ -6,7 +6,7 @@ import { prisma } from '../config/database';
 import { writeAuditLogTx } from '../services/audit.service';
 import { assertCanPerform } from '../services/permissions.service';
 import { sendSuccess, sendCreated } from '../utils/response';
-import { NotFoundError } from '../middleware/errorHandler';
+import { NotFoundError, ConflictError } from '../middleware/errorHandler';
 
 const router = Router();
 
@@ -42,11 +42,16 @@ const inviteUserSchema = z.object({
 router.post(
   '/',
   authenticate,
-  requireIdempotencyKey,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const body = createTenantSchema.parse(req.body);
       const userId = req.user!.userId;
+
+      // Check slug availability upfront — gives a clear error instead of a DB constraint crash
+      const existing = await prisma.tenant.findUnique({ where: { slug: body.slug } });
+      if (existing) {
+        throw new ConflictError(`Workspace URL "${body.slug}" is already taken. Please choose a different one.`);
+      }
 
       // Find or create the built-in "owner" role (tenantId: null → visible to all)
       let ownerRole = await prisma.role.findFirst({

@@ -6,7 +6,9 @@ const IDEMPOTENCY_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 
 /**
  * Enforces Idempotency-Key on POST/import/payment endpoints.
- * If the key has been seen before, replays the cached response.
+ * If Redis is unavailable the check is skipped gracefully — the header is
+ * still required (for audit / tracing purposes) but replay protection is
+ * best-effort only when Redis is down.
  */
 export function requireIdempotencyKey(
   req: Request,
@@ -19,12 +21,17 @@ export function requireIdempotencyKey(
     return;
   }
 
-    const scopeId = req.tenantContext?.tenantId ?? req.user?.userId ?? 'anon';
+  const scopeId = req.tenantContext?.tenantId ?? req.user?.userId ?? 'anon';
   const cacheKey = `idempotency:${scopeId}:${key}`;
 
-  // Wrap async logic — Express doesn't natively handle async middleware errors
   (async () => {
     try {
+      // If Redis is not connected, skip replay check but still allow the request
+      if (redis.status !== 'ready') {
+        next();
+        return;
+      }
+
       const cached = await redis.get(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached) as { status: number; body: unknown };
@@ -38,14 +45,15 @@ export function requireIdempotencyKey(
         if (res.statusCode < 500) {
           redis
             .setex(cacheKey, IDEMPOTENCY_TTL_SECONDS, JSON.stringify({ status: res.statusCode, body }))
-            .catch(() => {/* best-effort cache */});
+            .catch(() => {/* best-effort */});
         }
         return originalJson(body);
       };
 
       next();
-    } catch (err) {
-      next(err);
+    } catch {
+      // Redis error — degrade gracefully, don't block the request
+      next();
     }
   })();
 }
