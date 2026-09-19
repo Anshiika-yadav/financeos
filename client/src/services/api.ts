@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />s
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { ApiResponse } from '../types';

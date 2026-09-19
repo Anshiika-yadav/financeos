@@ -17,7 +17,7 @@ function inferDashboardRole(permittedScope: string[]): DashboardRole {
 export function DashboardPage() {
   const { user } = useAuth();
   // permittedScope would come from auth context in a real app
-  const role: DashboardRole = 'operational';
+  const role: DashboardRole = inferDashboardRole([]);
 
   return (
     <div className="p-6">
