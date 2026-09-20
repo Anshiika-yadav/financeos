@@ -3,10 +3,155 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply font-sans text-gray-900 antialiased;
+  :root {
+    --color-navy-950: #0B1220;
+    --color-navy-900: #111827;
+    --color-gold-500:  #C8A24A;
+    --color-surface-0:  #FFFFFF;
+    --color-surface-50: #F7F8FA;
+    --color-border:     #D8DEE8;
+    --color-ink-900:    #172033;
+    --color-ink-600:    #667085;
   }
-  * {
-    @apply box-border;
+
+  html {
+    @apply antialiased;
+    font-feature-settings: "tnum" on, "lnum" on; /* tabular numerals by default */
+  }
+
+  body {
+    @apply bg-surface-50 text-ink-900 font-sans text-[14px] leading-[1.5];
+  }
+
+  /* ── Numeric alignment helpers ─────────────────────────────────────────── */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Money figures always right-aligned, tabular ───────────────────────── */
+  .money {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-feature-settings: "tnum" on;
+  }
+
+  /* ── Scrollbar styling (webkit) ─────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-border-strong;
+  }
+
+  /* ── Focus visible ring ──────────────────────────────────────────────────── */
+  *:focus-visible {
+    outline: 2px solid var(--color-gold-500);
+    outline-offset: 2px;
+  }
+
+  /* ── Table cell number alignment ─────────────────────────────────────────── */
+  td.num, th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+@layer components {
+  /* ── Page scaffold ─────────────────────────────────────────────────────── */
+  .page {
+    @apply px-8 py-7 max-w-screen-2xl mx-auto;
+  }
+
+  /* ── Section title ─────────────────────────────────────────────────────── */
+  .section-title {
+    @apply text-[18px] font-semibold text-ink-900 mb-4;
+  }
+
+  /* ── Stat card ─────────────────────────────────────────────────────────── */
+  .stat-card {
+    @apply bg-surface-0 rounded-card shadow-card px-5 py-4;
+  }
+
+  .stat-card__label {
+    @apply text-[11px] font-medium uppercase tracking-widest text-ink-600;
+  }
+
+  .stat-card__value {
+    @apply text-kpi-sm tabular-nums mt-1 text-ink-900;
+  }
+
+  .stat-card__sub {
+    @apply text-[12px] text-ink-600 mt-0.5;
+  }
+
+  /* ── Filter chip ───────────────────────────────────────────────────────── */
+  .filter-chip {
+    @apply px-3 py-1 text-[12px] font-medium border rounded transition-colors cursor-pointer select-none;
+    @apply bg-surface-0 text-ink-600 border-border hover:border-border-strong hover:text-ink-900;
+  }
+
+  .filter-chip--active {
+    @apply bg-navy-950 text-white border-navy-950;
+  }
+
+  /* ── Table ─────────────────────────────────────────────────────────────── */
+  .data-table {
+    @apply w-full border-collapse bg-surface-0;
+  }
+
+  .data-table thead th {
+    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-600 border-b border-border bg-surface-50;
+  }
+
+  .data-table tbody tr {
+    @apply border-b border-border transition-colors;
+  }
+
+  .data-table tbody tr:hover {
+    @apply bg-surface-50;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-[13px] text-ink-900;
+  }
+
+  /* ── Status chip ────────────────────────────────────────────────────────── */
+  .status-chip {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide whitespace-nowrap;
+  }
+
+  /* ── Form field wrappers ──────────────────────────────────────────────── */
+  .field-label {
+    @apply block text-[13px] font-medium text-ink-700 mb-1;
+  }
+
+  .field-input {
+    @apply block w-full rounded-input border border-border bg-surface-0
+           px-3 py-2 text-[13px] text-ink-900 placeholder-ink-400
+           transition-colors
+           focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500
+           disabled:bg-surface-50 disabled:text-ink-400 disabled:cursor-not-allowed;
+  }
+
+  .field-input--error {
+    @apply border-danger focus:border-danger focus:ring-danger;
+  }
+
+  /* ── Drawer overlay ─────────────────────────────────────────────────────── */
+  .drawer-overlay {
+    @apply fixed inset-0 bg-navy-950/40 z-40;
+  }
+
+  .drawer-panel {
+    @apply fixed top-0 right-0 h-full w-[560px] max-w-full bg-surface-0 shadow-drawer z-50
+           flex flex-col overflow-hidden;
+  }
+
+  /* ── Section divider ────────────────────────────────────────────────────── */
+  .section-divider {
+    @apply border-t border-border my-6;
   }
 }

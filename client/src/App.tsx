@@ -49,6 +49,9 @@ import { InventoryPage } from './pages/inventory/InventoryPage';
 // Projects
 import { ProjectsPage } from './pages/projects/ProjectsPage';
 
+// Budgeting
+import { BudgetingPage } from './pages/budgeting/BudgetingPage';
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
@@ -105,6 +108,9 @@ function AppRoutes() {
 
       {/* Projects */}
       <Route path="/projects" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
+
+      {/* Budgeting */}
+      <Route path="/budgeting" element={<ProtectedRoute><BudgetingPage /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="/" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />

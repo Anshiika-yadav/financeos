@@ -1,58 +1,107 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { DataTable, Column } from '../../components/shared/DataTable';
+import { KpiCard } from '../../components/shared/KpiCard';
+import { StatusBadge } from '../../components/shared/StatusBadge';
 import { apiGet } from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/format';
+import { clsx } from 'clsx';
 
 interface AgeingLine {
   id: string; invoiceNumber: string;
-  customer: { name: string }; dueDate: string;
-  totalAmount: number; outstanding: number; daysOverdue: number; bucket: string; currency: string;
+  customer: { name: string; code: string };
+  dueDate: string; totalAmount: number; amountPaid: number;
+  outstanding: number; daysOverdue: number; bucket: string; currency: string; status: string;
 }
 
-const BUCKET_COLORS: Record<string, string> = {
-  Current: 'bg-green-100 text-green-800',
-  '1-30 days': 'bg-yellow-100 text-yellow-800',
-  '31-60 days': 'bg-orange-100 text-orange-800',
-  '61-90 days': 'bg-red-100 text-red-700',
-  '90+ days': 'bg-red-200 text-red-900',
+const BUCKETS = ['Current', '1-30 days', '31-60 days', '61-90 days', '90+ days'];
+const BUCKET_ACCENT: Record<string, string> = {
+  'Current':    'text-success',
+  '1-30 days':  'text-warning',
+  '31-60 days': 'text-[#9A6700]',
+  '61-90 days': 'text-danger',
+  '90+ days':   'text-danger',
+};
+const BUCKET_CHIP: Record<string, string> = {
+  'Current':    'bg-success-bg text-success border-success-border',
+  '1-30 days':  'bg-warning-bg text-warning border-warning-border',
+  '31-60 days': 'bg-warning-bg text-warning border-warning-border',
+  '61-90 days': 'bg-danger-bg  text-danger  border-danger-border',
+  '90+ days':   'bg-danger-bg  text-danger  border-danger-border',
 };
 
 export function CollectionsPage() {
-  const { data: lines = [], isLoading } = useQuery<AgeingLine[]>({ queryKey: ['ar-ageing'], queryFn: () => apiGet('/ar/ageing') });
+  const { data: lines = [], isLoading, isError } = useQuery<AgeingLine[]>({
+    queryKey: ['ar-ageing'],
+    queryFn: () => apiGet('/ar/ageing'),
+  });
 
-  const buckets = ['Current', '1-30 days', '31-60 days', '61-90 days', '90+ days'];
-  const bucketTotals = buckets.map(b => ({ bucket: b, total: lines.filter(l => l.bucket === b).reduce((s, l) => s + l.outstanding, 0), count: lines.filter(l => l.bucket === b).length }));
+  const totalOutstanding = lines.reduce((s, l) => s + l.outstanding, 0);
+  const overdue = lines.filter((l) => l.daysOverdue > 0);
+  const overdueValue = overdue.reduce((s, l) => s + l.outstanding, 0);
+
+  const bucketTotals = BUCKETS.map((b) => ({
+    bucket: b,
+    count: lines.filter((l) => l.bucket === b).length,
+    total: lines.filter((l) => l.bucket === b).reduce((s, l) => s + l.outstanding, 0),
+  }));
 
   const columns: Column<AgeingLine>[] = [
-    { key: 'invoiceNumber', header: 'Invoice #', className: 'font-mono font-medium' },
-    { key: 'customer', header: 'Customer', render: r => r.customer?.name },
-    { key: 'dueDate', header: 'Due Date', render: r => formatDate(r.dueDate) },
-    { key: 'daysOverdue', header: 'Days Overdue', render: r => <span className={r.daysOverdue > 0 ? 'text-red-600 font-medium' : 'text-green-600'}>{r.daysOverdue > 0 ? `${r.daysOverdue}d overdue` : 'Current'}</span> },
-    { key: 'outstanding', header: 'Outstanding', render: r => formatCurrency(r.outstanding, r.currency), className: 'text-right font-medium' },
-    { key: 'bucket', header: 'Ageing Bucket', render: r => <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${BUCKET_COLORS[r.bucket] ?? ''}`}>{r.bucket}</span> },
-    { key: 'actions', header: '', render: r => r.daysOverdue > 30 ? (
-      <button className="text-xs text-red-600 hover:underline flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Escalate</button>
-    ) : null },
+    { key: 'invoiceNumber', header: 'Invoice #',   className: 'w-36', render: (r) => <span className="font-mono text-[13px] font-medium">{r.invoiceNumber}</span> },
+    { key: 'customer',      header: 'Customer',    render: (r) => r.customer?.name ?? '—' },
+    { key: 'dueDate',       header: 'Due Date',    render: (r) => formatDate(r.dueDate) },
+    { key: 'daysOverdue',   header: 'Days Overdue',
+      render: (r) => r.daysOverdue > 0
+        ? <span className="font-medium text-danger">{r.daysOverdue}d</span>
+        : <span className="text-success flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Current</span>
+    },
+    { key: 'outstanding',   header: 'Outstanding', tdClassName: 'num', render: (r) => <span className={r.daysOverdue > 0 ? 'font-semibold text-danger' : 'font-semibold'}>{formatCurrency(r.outstanding, r.currency)}</span> },
+    { key: 'bucket',        header: 'Ageing',      render: (r) => <span className={clsx('status-chip border', BUCKET_CHIP[r.bucket] ?? 'bg-surface-100 text-ink-600')}>{r.bucket}</span> },
+    { key: 'status',        header: 'Status',      render: (r) => <StatusBadge status={r.status} /> },
+    { key: 'action', header: '', className: 'w-24',
+      render: (r) => r.daysOverdue > 30 ? (
+        <button className="text-[11px] font-medium text-danger hover:text-red-800 flex items-center gap-1 transition-colors">
+          <AlertTriangle className="w-3 h-3" />Escalate
+        </button>
+      ) : null,
+    },
   ];
 
-  return (
-    <div className="p-6">
-      <PageHeader title="Collections" subtitle="AR Ageing & Overdue" />
+  if (isError) return <div className="page"><div className="flex flex-col items-center justify-center py-24 gap-3"><AlertCircle className="w-10 h-10 text-danger" /><p className="text-[15px] font-medium text-ink-700">Could not load ageing report</p></div></div>;
 
+  return (
+    <div className="page">
+      <PageHeader title="Collections" subtitle="AR Ageing & Overdue Tracking" />
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <KpiCard label="Outstanding Total" value={formatCurrency(totalOutstanding)} accent="info" />
+        <KpiCard label="Overdue Balance"   value={formatCurrency(overdueValue)}    accent={overdueValue > 0 ? 'danger' : 'success'} />
+        <KpiCard label="Overdue Invoices"  value={overdue.length}                  accent={overdue.length > 0 ? 'danger' : 'default'} />
+        <KpiCard label="Current Invoices"  value={lines.filter((l) => l.bucket === 'Current').length} accent="success" />
+      </div>
+
+      {/* Bucket summary */}
       <div className="grid grid-cols-5 gap-3 mb-6">
-        {bucketTotals.map(b => (
-          <div key={b.bucket} className={`rounded-lg p-3 border ${b.bucket === 'Current' ? 'border-green-200 bg-green-50' : b.total > 0 ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
-            <p className="text-xs font-medium text-gray-600">{b.bucket}</p>
-            <p className={`text-xl font-bold mt-1 ${b.bucket === 'Current' ? 'text-green-700' : b.total > 0 ? 'text-red-700' : 'text-gray-400'}`}>{formatCurrency(b.total)}</p>
-            <p className="text-xs text-gray-400">{b.count} invoices</p>
+        {bucketTotals.map(({ bucket, count, total }) => (
+          <div key={bucket} className="stat-card">
+            <p className={clsx('stat-card__label', BUCKET_ACCENT[bucket])}>{bucket}</p>
+            <p className={clsx('stat-card__value', BUCKET_ACCENT[bucket])}>{formatCurrency(total)}</p>
+            <p className="stat-card__sub">{count} invoice{count !== 1 ? 's' : ''}</p>
           </div>
         ))}
       </div>
 
-      <DataTable columns={columns} data={lines.sort((a, b) => b.daysOverdue - a.daysOverdue)} keyField="id" isLoading={isLoading} emptyMessage="No outstanding invoices" />
+      <DataTable
+        columns={columns}
+        data={[...lines].sort((a, b) => b.daysOverdue - a.daysOverdue)}
+        keyField="id"
+        isLoading={isLoading}
+        isError={isError}
+        emptyMessage="No outstanding invoices — all caught up!"
+        emptyIcon={<CheckCircle2 className="w-8 h-8 text-success" />}
+      />
     </div>
   );
 }

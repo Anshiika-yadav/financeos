@@ -8,99 +8,75 @@ import { Input } from '../../components/shared/Input';
 import { Button } from '../../components/shared/Button';
 import { useAuth } from '../../store/auth.context';
 import { login } from '../../services/auth.service';
-import { tokenStore } from '../../services/api';
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email:    z.string().email('Enter a valid email'),
   password: z.string().min(1, 'Password is required'),
 });
-
 type FormValues = z.infer<typeof schema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { login: authLogin } = useAuth();
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setError,
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, formState: { errors }, setError } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const mutation = useMutation({
     mutationFn: login,
     onSuccess: (tokens) => {
-      // In a real app, we'd decode the JWT to get user info.
-      const existingTenantSlug = tokenStore.getTenantSlug();
-      authLogin(
-        { userId: '', email: '', firstName: '', lastName: '' },
-        tokens,
-        existingTenantSlug ?? undefined,
-      );
-      navigate(existingTenantSlug ? '/dashboard' : '/onboarding');
+      authLogin({ userId: '', email: '', firstName: '', lastName: '' }, tokens);
+      navigate('/onboarding');
     },
-    onError: () => {
-      setError('root', { message: 'Invalid email or password' });
-    },
+    onError: () => setError('root', { message: 'Invalid email or password' }),
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h1 className="text-center text-3xl font-bold text-brand-700">FinanceOS</h1>
-        <h2 className="mt-6 text-center text-2xl font-semibold text-gray-900">
-          Sign in to your account
-        </h2>
-      </div>
+    <div className="min-h-screen bg-navy-950 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-[28px] font-bold text-white tracking-tight">
+            Finance<span className="text-gold-500">OS</span>
+          </h1>
+          <p className="text-navy-200 text-[14px] mt-1">Enterprise Financial Platform</p>
+        </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form
-            className="space-y-6"
-            onSubmit={handleSubmit((data) => mutation.mutate(data))}
-            noValidate
-          >
+        {/* Card */}
+        <div className="bg-surface-0 rounded-card2 p-8 shadow-modal">
+          <h2 className="text-[20px] font-semibold text-ink-900 mb-1">Sign in</h2>
+          <p className="text-[13px] text-ink-600 mb-6">Enter your credentials to continue</p>
+
+          <form className="space-y-4" onSubmit={handleSubmit((d) => mutation.mutate(d))} noValidate>
             <Input
-              label="Email address"
-              type="email"
-              autoComplete="email"
-              required
-              error={errors.email?.message}
-              {...register('email')}
+              label="Email address" type="email" autoComplete="email" required
+              error={errors.email?.message} {...register('email')}
             />
-
             <Input
-              label="Password"
-              type="password"
-              autoComplete="current-password"
-              required
-              error={errors.password?.message}
-              {...register('password')}
+              label="Password" type="password" autoComplete="current-password" required
+              error={errors.password?.message} {...register('password')}
             />
 
             {errors.root && (
-              <p className="text-sm text-red-600 text-center" role="alert">
+              <div className="text-[12px] text-danger bg-danger-bg border border-danger-border rounded-input px-3 py-2" role="alert">
                 {errors.root.message}
-              </p>
+              </div>
             )}
 
-            <Button
-              type="submit"
-              className="w-full"
-              isLoading={mutation.isPending}
-            >
+            <Button type="submit" className="w-full mt-2" isLoading={mutation.isPending} variant="gold" size="lg">
               Sign in
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-600">
+          <p className="mt-5 text-center text-[13px] text-ink-600">
             Don&apos;t have an account?{' '}
-            <Link to="/signup" className="font-medium text-brand-600 hover:text-brand-500">
+            <Link to="/signup" className="font-medium text-info hover:text-blue-700 transition-colors">
               Create one
             </Link>
           </p>
         </div>
+
+        <p className="text-center text-[12px] text-navy-200 mt-6">
+          © {new Date().getFullYear()} FinanceOS · All rights reserved
+        </p>
       </div>
     </div>
   );

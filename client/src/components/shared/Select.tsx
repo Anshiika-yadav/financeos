@@ -4,36 +4,34 @@ import { clsx } from 'clsx';
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
+  hint?: string;
   options: { value: string; label: string }[];
   placeholder?: string;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, placeholder, className, id, ...props }, ref) => {
-    const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
+  ({ label, error, hint, options, placeholder, className, id, required, ...props }, ref) => {
+    const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     return (
       <div className="flex flex-col gap-1">
         {label && (
-          <label htmlFor={selectId} className="text-sm font-medium text-gray-700">
+          <label htmlFor={selectId} className="field-label">
             {label}
-            {props.required && (
-              <span className="text-red-500 ml-1" aria-hidden="true">*</span>
-            )}
+            {required && <span className="text-danger ml-0.5" aria-hidden>*</span>}
           </label>
         )}
         <select
           ref={ref}
           id={selectId}
+          required={required}
           className={clsx(
-            'block w-full rounded-md border px-3 py-2 text-sm shadow-sm',
-            'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500',
-            'disabled:bg-gray-50 disabled:text-gray-500',
-            error ? 'border-red-300' : 'border-gray-300',
+            'field-input appearance-none',
+            error && 'field-input--error',
             className,
           )}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${selectId}-error` : undefined}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${selectId}-err` : hint ? `${selectId}-hint` : undefined}
           {...props}
         >
           {placeholder && (
@@ -48,13 +46,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ))}
         </select>
         {error && (
-          <p id={`${selectId}-error`} className="text-sm text-red-600" role="alert">
+          <p id={`${selectId}-err`} className="text-[12px] text-danger" role="alert">
             {error}
+          </p>
+        )}
+        {hint && !error && (
+          <p id={`${selectId}-hint`} className="text-[12px] text-ink-600">
+            {hint}
           </p>
         )}
       </div>
     );
   },
 );
-
 Select.displayName = 'Select';
