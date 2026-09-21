@@ -23,6 +23,7 @@ import inventoryRoutes from './routes/modules/inventory.routes';
 import projectsRoutes from './routes/modules/projects.routes';
 import budgetingRoutes from './routes/modules/budgeting.routes';
 import controlsRoutes from './routes/modules/controls.routes';
+import taxRoutes from './routes/modules/tax.routes';
 
 export function createApp() {
   const app = express();
@@ -116,6 +117,7 @@ export function createApp() {
   app.use('/api/v1/projects', projectsRoutes);
   app.use('/api/v1/budgeting', budgetingRoutes);
   app.use('/api/v1/controls', controlsRoutes);
+app.use('/api/v1/tax', taxRoutes);
 
   // ─── Error handler (must be last) ─────────────────────────────────────────
   app.use(errorHandler);
