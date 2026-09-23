@@ -24,6 +24,12 @@ import projectsRoutes from './routes/modules/projects.routes';
 import budgetingRoutes from './routes/modules/budgeting.routes';
 import controlsRoutes from './routes/modules/controls.routes';
 import taxRoutes from './routes/modules/tax.routes';
+import payrollRoutes from './routes/modules/payroll.routes';
+import reportsRoutes from './routes/modules/reports.routes';
+import documentRoutes from './routes/modules/document.routes';
+import settingsRoutes from './routes/modules/settings.routes';
+import billingRoutes from './routes/modules/billing.routes';
+
 
 export function createApp() {
   const app = express();
@@ -118,6 +124,11 @@ export function createApp() {
   app.use('/api/v1/budgeting', budgetingRoutes);
   app.use('/api/v1/controls', controlsRoutes);
 app.use('/api/v1/tax', taxRoutes);
+app.use('/api/v1/payroll', payrollRoutes);
+app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/documents', documentRoutes);
+app.use('/api/v1/settings', settingsRoutes);
+app.use('/api/v1/billing', billingRoutes);
 
   // ─── Error handler (must be last) ─────────────────────────────────────────
   app.use(errorHandler);
