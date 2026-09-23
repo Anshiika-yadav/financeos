@@ -40,23 +40,11 @@ router.get('/accounts', async (req: Request, res: Response, next: NextFunction) 
     assertCanPerform(req.tenantContext!, 'read', { type: 'account', module: 'gl' });
     const accounts = await req.withTenantDb!((tx) =>
       tx.glAccount.findMany({
-        where: { tenantId: req.tenantContext!.tenantId, isActive: true },
+        where: { tenantId: req.tenantContext!.tenantId },
         orderBy: [{ accountType: 'asc' }, { code: 'asc' }],
       }),
     );
-
-    // Normalize data so dropdown components receive structured label/value properties
-    const formattedAccounts = accounts.map((acc: any) => ({
-      ...acc,
-      id: acc.id,
-      value: acc.id,
-      label: `${acc.code} - ${acc.name}`,
-      code: acc.code,
-      name: acc.name,
-      accountType: acc.accountType
-    }));
-
-    sendSuccess(res, formattedAccounts);
+    sendSuccess(res, accounts);
   } catch (e) { next(e); }
 });
 
@@ -67,7 +55,7 @@ router.post('/accounts', async (req: Request, res: Response, next: NextFunction)
     const body = createAccountSchema.parse(req.body);
 
     const account = await req.withTenantDb!((tx) =>
-      tx.glAccount.create({ data: { tenantId, isActive: true, ...body } }),
+      tx.glAccount.create({ data: { tenantId, ...body } }),
     );
     sendCreated(res, account);
   } catch (e) { next(e); }
@@ -270,12 +258,12 @@ router.get('/trial-balance', async (req: Request, res: Response, next: NextFunct
         where: { tenantId, journal: { status: 'Posted' } },
       });
 
-      return accounts.map((acc: any) => {
-        const accLines = lines.filter((l: any) => l.accountId === acc.id);
-        const totalDebit = accLines.reduce((s: number, l: any) => s + Number(l.debit), 0);
-        const totalCredit = accLines.reduce((s: number, l: any) => s + Number(l.credit), 0);
+      return accounts.map(acc => {
+        const accLines = lines.filter(l => l.accountId === acc.id);
+        const totalDebit = accLines.reduce((s, l) => s + Number(l.debit), 0);
+        const totalCredit = accLines.reduce((s, l) => s + Number(l.credit), 0);
         return { ...acc, totalDebit, totalCredit, balance: totalDebit - totalCredit };
-      }).filter((a: any) => a.totalDebit !== 0 || a.totalCredit !== 0);
+      }).filter(a => a.totalDebit !== 0 || a.totalCredit !== 0);
     });
 
     sendSuccess(res, balances);
